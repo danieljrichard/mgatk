@@ -19,6 +19,12 @@ genotypes generated from single-cell genomics data, primarily `mtscATAC-seq`, bu
 applicable across other assays. 
 <br>
 
+**Updated July 2024
+Run the 'run_pipeline.sh' script to generate outputs. Assumes that possorted_bam.bam and barcodes.tsv are in the executing directory.
+Syntax: run_pipeline.sh samplename outdir
+E.g. 
+./run_pipeline.sh C2_test_RAW C2_test_RAW_mgatk
+
 Check out the [**mgatk** documentation](https://github.com/caleblareau/mgatk/wiki) for more 
 information and user guides. 
 
