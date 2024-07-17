@@ -79,7 +79,9 @@ rule process_one_slice:
 		
 		# Process one sample
 		# Software paths
-
+		command_file = outdir + "/temp/" + sample + "_command_set.txt"
+		command_file2 = outdir + "/temp/" + sample + "_command_set_BASH.txt"
+		outfile = open(command_file, "w")
 		# Prepare filepath locations
 		output_bam = outdir + "/temp/ready_bam/" + sample + ".qc.bam"
 		rmlog = output_bam.replace(".qc.bam", ".rmdups.log").replace("/temp/ready_bam/", "/logs/rmdupslogs/")
@@ -91,34 +93,51 @@ rule process_one_slice:
 
 		# 1) Filter bam files
 		pycall = " ".join([python, filtclip_py, input_bam, filtlog, mito_genome, proper_paired, NHmax, NMmax]) + " > " + temp_bam0
-		os.system(pycall)
-
+		outfile.write(pycall + "\n") ##write this line to file.
+		subprocess.call("echo '" + pycall + "' > " + command_file2, shell = True)
+		#os.system(pycall)
 		# 2) Sort the filtered bam file
-		pysam.sort("-o", temp_bam1, temp_bam0)
-		pysam.index(temp_bam1)
-
+		sort_command = "samtools sort -o " + temp_bam1 + " " + temp_bam0
+		outfile.write(sort_command + "\n")
+		subprocess.call("echo '" + sort_command + "' >> " + command_file2, shell = True)
+		#pysam.sort("-o", temp_bam1, temp_bam0)
+		#pysam.index(temp_bam1)
+		index_command = "samtools index " + temp_bam1
+		outfile.write(index_command + "\n")
+		subprocess.call("echo '" + index_command + "' >> " + command_file2, shell = True)
 		# As this is executed in tenx mode, we should have a UMI (either the cell barcode or both the cell barcode + UMI)
 		umi_extra = " BARCODE_TAG=" + umi_barcode
-
 		# 3) (Optional) Remove duplicates
 		if (remove_duplicates == "True"):
 			mdc_long = picardCall + " I="+temp_bam1+" O="+output_bam+" M="+rmlog+" REMOVE_DUPLICATES=true ASSUME_SORTED=true VALIDATION_STRINGENCY=SILENT QUIET=true VERBOSITY=ERROR USE_JDK_DEFLATER=true USE_JDK_INFLATER=true" + umi_extra 
-			proc = subprocess.Popen(mdc_long, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
-			out, err = proc.communicate()  # Read data from stdout and stderr
+			outfile.write(mdc_long + "\n")
+			subprocess.call("echo '" + mdc_long + "' >> " + command_file2, shell = True)
+			#proc = subprocess.Popen(mdc_long, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+			#out, err = proc.communicate()  # Read data from stdout and stderr
 			#print(err)
 			
 		else: # just move the previous output
 			os.system("mv " + temp_bam1 + " " + output_bam)
 			os.system("rm " + temp_bam1 + ".bai")
-		pysam.index(output_bam)
-		
+		#pysam.index(output_bam)
+		index_command2 = "samtools index " + output_bam
+		subprocess.call("echo '" + index_command2 + "' >> " + command_file2, shell = True)
 		# Now collect the genotype counts
 		if handle_overlap == "True":
 			sumstats_tenx_py = script_dir + "/bin/python/sumstatsBPtenx_overlap.py"
 		else:
 			sumstats_tenx_py = script_dir + "/bin/python/sumstatsBPtenx.py"
+		print("OK next")
 		pycall = " ".join(['python', sumstats_tenx_py, output_bam, barcodes_file, out_pre, mito_length, base_qual, fasta_file, alignment_quality, barcode_tag])
-		os.system(pycall)
+		subprocess.call("echo '" + pycall + "' >> " + command_file2, shell = True)
+		outfile.write(pycall + "\n")
+		#os.system(pycall)
+		##write the output of this python function to a combined depthTable file.
+		depthtable = mgatk_directory + "/final/" + name + ".depthTable.txt"
+		cat_command = "cat " + outputdepth +  " >> " depthtable
+		subprocess.call("echo '" + cat_command + "' >> " + command_file2, shell = True)
+		outfile.write(cat_command + "\n")
+		outfile.close()
 		
 rule make_depth_table:
 	input:
@@ -174,4 +193,3 @@ rule call_variants:
 		call_variant_py = script_dir + "/bin/python/variant_calling.py"
 		pycall = " ".join(['python', call_variant_py, mgatk_directory + "/final/", name, mito_length, low_coverage_threshold, mito_genome])
 		os.system(pycall)
-
