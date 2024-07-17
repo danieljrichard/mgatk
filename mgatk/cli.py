@@ -10,6 +10,7 @@ import time
 import pysam
 import math
 import glob
+import subprocess
 
 from pkg_resources import get_distribution
 from subprocess import call, check_call
@@ -21,7 +22,7 @@ from multiprocessing import Pool
 
 @click.command()
 @click.version_option()
-@click.argument('mode', type=click.Choice(['bcall', 'call', 'tenx', 'check', 'support', 'remove-background']))
+@click.argument('mode', type=click.Choice(['bcall', 'call', 'tenx', 'check', 'support', 'remove-background', 'CONT']))
 @click.option('--input', '-i', default = ".", required=True, help='Input; either directory of singular .bam file; see documentation. REQUIRED.')
 @click.option('--output', '-o', default="mgatk_out", help='Output directory for analysis required for `call` and `bcall`. Default = mgatk_out')
 @click.option('--name', '-n', default="mgatk",  help='Prefix for project name. Default = mgatk')
@@ -120,6 +121,19 @@ def main(mode, input, output, name, mito_genome, ncores,
 	if(mode == "check"):
 		click.echo(gettime() + "checking dependencies...")
 	
+	if(mode == "CONT"):
+		y_s = output + "/.internal/parseltongue/snake.scatter.yaml"
+		logs = output + "/logs"
+		snake_log = logs + "/" + name + ".snakemake_tenx_CONT.log"
+		snakeclust = ""
+		snake_log_out = ""
+		if not snake_stdout:
+			snake_log_out = ' &>' + snake_log
+		snakecmd_tenx = 'snakemake'+snakeclust+' --snakefile ' + script_dir + '/bin/snake/Snakefile_CONTINUE.tenx --cores '+ncores+' --config cfp="'  + y_s + '"'+ snake_log_out
+		os.system(snakecmd_tenx)
+		print("DONE CONTINUED")
+		exit()
+
 	# Remember that I started off as bcall as this will become overwritten
 	wasbcall = False
 	continue_check = True
@@ -306,6 +320,10 @@ def main(mode, input, output, name, mito_genome, ncores,
 			 qc, qc + "/quality", qc + "/depth"]
 
 		mkfolderout = [make_folder(x) for x in folders]
+		for fold in folders:
+			subprocess.call("mkdir " + fold, shell = True)
+			print("made " + fold)
+			subprocess.call("echo 'mkdir " + fold + " ' >> " + name + "_FOLDER_MAKE_COMMANDS.txt", shell= True)
 		
 		#-------------------
 		# Handle .fasta file
@@ -491,6 +509,3 @@ def main(mode, input, output, name, mito_genome, ncores,
 		
 		# Suspend logging
 		logf.close()
-
-	
-	
