@@ -7,6 +7,7 @@ import sys
 import shutil
 import pysam
 from ruamel import yaml
+from ruamel.yaml import YAML
 
 configFile = sys.argv[1]
 inputbam = sys.argv[2]
@@ -14,7 +15,8 @@ outputbam = sys.argv[3]
 sample = sys.argv[4]
 
 with open(configFile, 'r') as stream:
-	config = yaml.load(stream, Loader=yaml.Loader)
+	d = YAML(type='rt')#config = yaml.load(stream, Loader=yaml.Loader)
+	config = d.load(stream) #yaml.load(stream, Loader=yaml.Loader)
 
 # Parse the configuration variables
 indir = config["input_directory"]
